@@ -71,6 +71,23 @@ const authenticate = (req, res, next) => {
     }
 };
 
+
+app.get("/check-auth", (req, res) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({ loggedIn: false, error: "Token tidak ditemukan" });
+    }
+
+    try {
+        const user = jwt.verify(token, SECRET_KEY);
+        res.json({ loggedIn: true, user });
+    } catch (err) {
+        res.status(403).json({ loggedIn: false, error: "Token tidak valid" });
+    }
+});
+
+
 // Login User
 app.post("/users/login", async (req, res) => {
     const { username, password } = req.body;
@@ -92,13 +109,13 @@ app.post("/users/login", async (req, res) => {
     res.json({ message: "Login berhasil" });
 });
 
-// Mendapatkan semua blog
+
 app.get("/blogs", async (req, res) => {
     const blogs = await readJSON(BLOGS_FILE);
     res.json(blogs.map(({ id, title, author, created_at, image_url }) => ({ id, title, author, created_at, image_url })));
 });
 
-// Mendapatkan blog terbaru (3 blog)
+// Mendapatkan blog terbaru
 app.get("/home/blogs", async (req, res) => {
     const blogs = await readJSON(BLOGS_FILE);
     const sortedBlogs = blogs
@@ -108,7 +125,7 @@ app.get("/home/blogs", async (req, res) => {
     res.json(sortedBlogs.map(({ id, title, author, created_at, image_url }) => ({ id, title, author, created_at, image_url })));
 });
 
-// Mendapatkan blog berdasarkan ID
+
 app.get("/blog/:id", async (req, res) => {
     const blogs = await readJSON(BLOGS_FILE);
     const blog = blogs.find(b => b.id === parseInt(req.params.id));
@@ -138,7 +155,7 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
     res.status(201).json(newBlog);
 });
 
-// Menghapus blog dan gambar di Cloudinary
+
 app.delete("/blog/:id", authenticate, async (req, res) => {
     let blogs = await readJSON(BLOGS_FILE);
     const blogIndex = blogs.findIndex(b => b.id === parseInt(req.params.id));
@@ -153,7 +170,7 @@ app.delete("/blog/:id", authenticate, async (req, res) => {
     blogs.splice(blogIndex, 1);
     await writeJSON(BLOGS_FILE, blogs);
 
-    // Hapus gambar dari Cloudinary jika ada
+
     if (blog.image_public_id) {
         try {
             await cloudinary.uploader.destroy(blog.image_public_id);
