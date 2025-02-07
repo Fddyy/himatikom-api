@@ -16,7 +16,7 @@ const SECRET_KEY = process.env.SECRET_KEY;
 app.use(bodyParser.json());
 app.use(cookieParser());
 app.use(cors({
-    origin: "http://localhost:5500",
+    origin: "https://himatikom-unipol-gjryk3uwo-feddy-projects.vercel.app",
     credentials: true
 }));
 app.use(express.static("public"));
