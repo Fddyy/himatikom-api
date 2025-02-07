@@ -1,6 +1,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const fs = require("fs-extra");
+const path = require("path");
 const multer = require("multer");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -137,9 +138,30 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
 
 app.delete("/blog/:id", authenticate, async (req, res) => {
     let blogs = await readJSON(BLOGS_FILE);
-    blogs = blogs.filter(b => b.id !== parseInt(req.params.id));
+    const blogIndex = blogs.findIndex(b => b.id === parseInt(req.params.id));
+
+    if (blogIndex === -1) {
+        return res.status(404).json({ error: "Blog tidak ditemukan" });
+    }
+
+    // Dapatkan nama file gambar
+    const blog = blogs[blogIndex];
+    const imagePath = path.join(__dirname, "public", blog.image_url);
+
+    // Hapus blog dari daftar
+    blogs.splice(blogIndex, 1);
     await writeJSON(BLOGS_FILE, blogs);
-    res.json({ message: "Blog berhasil dihapus" });
+
+    // Hapus file gambar jika ada
+    if (blog.image_url) {
+        try {
+            await fs.remove(imagePath);
+        } catch (err) {
+            console.error("Gagal menghapus gambar:", err);
+        }
+    }
+
+    res.json({ message: "Blog dan gambar berhasil dihapus" });
 });
 
 
