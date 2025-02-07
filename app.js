@@ -13,7 +13,7 @@ const { v2: cloudinary } = require("cloudinary");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
 
 const app = express();
-const PORT = process.env.PORT;
+const PORT = process.env.PORT || 4000;
 const SECRET_KEY = process.env.SECRET_KEY;
 
 app.use(bodyParser.json());
