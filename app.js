@@ -71,23 +71,6 @@ const authenticate = (req, res, next) => {
     }
 };
 
-
-app.get("/check-auth", (req, res) => {
-    const token = req.cookies.token;
-
-    if (!token) {
-        return res.status(401).json({ loggedIn: false, error: "Token tidak ditemukan" });
-    }
-
-    try {
-        const user = jwt.verify(token, SECRET_KEY);
-        res.json({ loggedIn: true, user });
-    } catch (err) {
-        res.status(403).json({ loggedIn: false, error: "Token tidak valid" });
-    }
-});
-
-
 // Login User
 app.post("/users/login", async (req, res) => {
     const { username, password } = req.body;
@@ -107,6 +90,21 @@ app.post("/users/login", async (req, res) => {
     });
 
     res.json({ message: "Login berhasil" });
+});
+
+app.get("/check-auth", (req, res) => {
+    const token = req.cookies.token;
+
+    if (!token) {
+        return res.status(401).json({ loggedIn: false, error: "Token tidak ditemukan" });
+    }
+
+    try {
+        const user = jwt.verify(token, SECRET_KEY);
+        res.json({ loggedIn: true, user });
+    } catch (err) {
+        res.status(403).json({ loggedIn: false, error: "Token tidak valid" });
+    }
 });
 
 
