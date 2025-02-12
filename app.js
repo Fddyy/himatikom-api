@@ -1,13 +1,11 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const fs = require("fs-extra");
-const path = require("path");
 const multer = require("multer");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const cors = require("cors");
 const cookieParser = require("cookie-parser");
-const mime = require("mime-types");
 require('dotenv').config();
 const { v2: cloudinary } = require("cloudinary");
 const { CloudinaryStorage } = require("multer-storage-cloudinary");
@@ -51,13 +49,29 @@ const readJSON = async (file) => {
     try {
         return await fs.readJson(file);
     } catch (err) {
+        console.error("Gagal membaca file:", file, "Error:", err);
         return [];
     }
 };
 
 const writeJSON = async (file, data) => {
-    await fs.writeJson(file, data, { spaces: 2 });
+    try {
+        await fs.writeJson(file, data, { spaces: 2 });
+    } catch (err) {
+        console.error("Gagal menulis file:", file, "Error:", err);
+    }
 };
+
+// (async () => {
+//     const name = process.env.NAME
+//     const pw = process.env.PW
+//     const users = await readJSON(USERS_FILE);
+//     if (!users.some(u => u.username === name)) {
+//         const hashedPassword = await bcrypt.hash(pw, 10);
+//         users.push({ id: 1, username: name, password: hashedPassword, role: "admin", created_at: new Date().toISOString() });
+//         await writeJSON(USERS_FILE, users);
+//     }
+// })();
 
 const authenticate = (req, res, next) => {
     const token = req.cookies.token;
@@ -67,6 +81,7 @@ const authenticate = (req, res, next) => {
         req.user = jwt.verify(token, SECRET_KEY);
         next();
     } catch {
+        console.error("Token verification error:", err);
         res.status(403).json({ error: "Token tidak valid" });
     }
 };
@@ -133,24 +148,30 @@ app.get("/blog/:id", async (req, res) => {
 
 // Menambahkan blog baru dengan upload ke Cloudinary
 app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => {
-    const { title, content, author } = req.body;
-    if (!title || !content || !author) return res.status(400).json({ error: "Semua field harus diisi" });
-
-    const blogs = await readJSON(BLOGS_FILE);
-    const newBlog = {
-        id: blogs.length > 0 ? Math.max(...blogs.map(b => b.id)) + 1 : 1,
-        title,
-        content,
-        author,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-        image_url: req.file ? req.file.path : null, // URL gambar Cloudinary
-        image_public_id: req.file ? req.file.filename.split("/").pop().split(".")[0] : null // ID gambar di Cloudinary
-    };
-
-    blogs.push(newBlog);
-    await writeJSON(BLOGS_FILE, blogs);
-    res.status(201).json(newBlog);
+    
+    try {
+        const { title, content, author } = req.body;
+        if (!title || !content || !author) return res.status(400).json({ error: "Semua field harus diisi" });
+    
+        const blogs = await readJSON(BLOGS_FILE);
+        const newBlog = {
+            id: blogs.length > 0 ? Math.max(...blogs.map(b => b.id)) + 1 : 1,
+            title,
+            content,
+            author,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            image_url: req.file ? req.file.path : null, // URL gambar Cloudinary
+            image_public_id: req.file ? req.file.filename.split("/").pop().split(".")[0] : null // ID gambar di Cloudinary
+        };
+    
+        blogs.push(newBlog);
+        await writeJSON(BLOGS_FILE, blogs);
+        res.status(201).json(newBlog);
+    } catch (err) {
+        console.error("Error saat menambahkan blog:", err); // Log error lebih rinci
+        res.status(500).json({ error: "Terjadi kesalahan server" });
+    }
 });
 
 
