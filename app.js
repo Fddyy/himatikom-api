@@ -149,6 +149,7 @@ app.get("/blog/:id", async (req, res) => {
 // Menambahkan blog baru dengan upload ke Cloudinary
 app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => {
     
+    try {
         const { title, content, author } = req.body;
         if (!title || !content || !author) return res.status(400).json({ error: "Semua field harus diisi" });
     
@@ -167,6 +168,10 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
         blogs.push(newBlog);
         await writeJSON(BLOGS_FILE, blogs);
         res.status(201).json(newBlog);
+    } catch (err) {
+        console.error("Error saat menambahkan blog:", err); // Log error lebih rinci
+        res.status(500).json({ error: "Terjadi kesalahan server" });
+    }
 });
 
 
