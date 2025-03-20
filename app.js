@@ -1,6 +1,5 @@
 const express = require("express");
 const bodyParser = require("body-parser");
-const fs = require("fs-extra");
 const multer = require("multer");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
@@ -42,34 +41,55 @@ const storage = new CloudinaryStorage({
 const upload = multer({ storage });
 
 // File JSON
-const BLOGS_FILE = "./data/blogs.json";
-const USERS_FILE = "./data/users.json";
+const JSONBIN_ID = process.env.JSONBIN_ID;
+const MASTER_KEY = process.env.MASTER_KEY;
+const ACCESS_KEY = process.env.ACCESS_KEY;
 
-const readJSON = async (file) => {
+
+// Fungsi membaca data dari JSONBin.io
+const fetchData = async () => {
     try {
-        return await fs.readJson(file);
+        const response = await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}/latest`, {
+            headers: {
+                "X-Access-Key": ACCESS_KEY,
+            },
+        });
+
+        const result = await response.json();
+        return result.record || {};
+
     } catch (err) {
-        console.error("Gagal membaca file:", file, "Error:", err);
-        return [];
+        console.error("Gagal mengambil data dari JSONBin:", err);
+    return {};
     }
 };
 
-const writeJSON = async (file, data) => {
+// Fungsi menulis data ke JSONBin.io
+const saveData = async (data) => {
     try {
-        await fs.writeJson(file, data, { spaces: 2 });
+        await fetch(`https://api.jsonbin.io/v3/b/${JSONBIN_ID}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Master-Key": MASTER_KEY,
+            },
+            body: JSON.stringify(data),
+        });
     } catch (err) {
-        console.error("Gagal menulis file:", file, "Error:", err);
+        console.error("Gagal menyimpan data ke JSONBin:", err);
     }
 };
 
 // (async () => {
 //     const name = process.env.NAME
 //     const pw = process.env.PW
-//     const users = await readJSON(USERS_FILE);
+//     const data = await fetchData();
+//     const users = data.users || [];
 //     if (!users.some(u => u.username === name)) {
 //         const hashedPassword = await bcrypt.hash(pw, 10);
 //         users.push({ id: 1, username: name, password: hashedPassword, role: "admin", created_at: new Date().toISOString() });
-//         await writeJSON(USERS_FILE, users);
+//         data.users = users;
+//         await saveData(data)
 //     }
 // })();
 
@@ -80,7 +100,7 @@ const authenticate = (req, res, next) => {
     try {
         req.user = jwt.verify(token, SECRET_KEY);
         next();
-    } catch {
+    } catch (err) {
         console.error("Token verification error:", err);
         res.status(403).json({ error: "Token tidak valid" });
     }
@@ -89,7 +109,8 @@ const authenticate = (req, res, next) => {
 // Login User
 app.post("/users/login", async (req, res) => {
     const { username, password } = req.body;
-    const users = await readJSON(USERS_FILE);
+    const data = await fetchData();
+    const users = data.users || [];
     const user = users.find(u => u.username === username);
     if (!user || !(await bcrypt.compare(password, user.password))) {
         return res.status(401).json({ error: "Username atau password salah" });
@@ -124,13 +145,15 @@ app.get("/check-auth", (req, res) => {
 
 
 app.get("/blogs", async (req, res) => {
-    const blogs = await readJSON(BLOGS_FILE);
+    const data = await fetchData();
+    const blogs = data.blogs || [];
     res.json(blogs.map(({ id, title, author, created_at, image_url }) => ({ id, title, author, created_at, image_url })));
 });
 
 // Mendapatkan blog terbaru
 app.get("/home/blogs", async (req, res) => {
-    const blogs = await readJSON(BLOGS_FILE);
+    const data = await fetchData();
+    const blogs = data.blogs || [];
     const sortedBlogs = blogs
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 3);
@@ -140,7 +163,8 @@ app.get("/home/blogs", async (req, res) => {
 
 
 app.get("/blog/:id", async (req, res) => {
-    const blogs = await readJSON(BLOGS_FILE);
+    const data = await fetchData();
+    const blogs = data.blogs || [];
     const blog = blogs.find(b => b.id === parseInt(req.params.id));
     if (!blog) return res.status(404).json({ error: "Blog tidak ditemukan" });
     res.json(blog);
@@ -153,7 +177,9 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
         const { title, content, author } = req.body;
         if (!title || !content || !author) return res.status(400).json({ error: "Semua field harus diisi" });
     
-        const blogs = await readJSON(BLOGS_FILE);
+        const data = await fetchData();
+        const blogs = data.blogs || [];
+
         const newBlog = {
             id: blogs.length > 0 ? Math.max(...blogs.map(b => b.id)) + 1 : 1,
             title,
@@ -166,7 +192,8 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
         };
     
         blogs.push(newBlog);
-        await writeJSON(BLOGS_FILE, blogs);
+        data.blogs = blogs;
+        await saveData(data);
         res.status(201).json(newBlog);
     } catch (err) {
         console.error("Error saat menambahkan blog:", err); // Log error lebih rinci
@@ -176,7 +203,8 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
 
 
 app.delete("/blog/:id", authenticate, async (req, res) => {
-    let blogs = await readJSON(BLOGS_FILE);
+    const data = await fetchData();
+    let blogs = data.blogs || [];
     const blogIndex = blogs.findIndex(b => b.id === parseInt(req.params.id));
 
     if (blogIndex === -1) {
@@ -187,7 +215,9 @@ app.delete("/blog/:id", authenticate, async (req, res) => {
 
     // Hapus blog dari daftar
     blogs.splice(blogIndex, 1);
-    await writeJSON(BLOGS_FILE, blogs);
+
+    data.blogs = blogs;
+    await saveData(data);
 
 
     if (blog.image_public_id) {
