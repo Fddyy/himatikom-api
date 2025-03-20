@@ -173,7 +173,7 @@ app.get("/home/blogs", async (req, res) => {
 app.get("/blog/:slug", async (req, res) => {
     const data = await fetchData();
     const blogs = data.blogs || [];
-    const blogIndex = blogs.findIndex(b => b.slug === req.params.slug);
+    const blog = blogs.find(b => b.slug === req.params.slug);
     if (!blog) return res.status(404).json({ error: "Blog tidak ditemukan" });
     res.json(blog);
 });
@@ -211,10 +211,10 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
 });
 
 
-app.delete("/blog/:slug", authenticate, async (req, res) => {
+app.delete("/blog/:id", authenticate, async (req, res) => {
     const data = await fetchData();
     let blogs = data.blogs || [];
-    const blogIndex = blogs.findIndex(b => b.slug === parseInt(req.params.slug));
+    const blogIndex = blogs.findIndex(b => b.id === parseInt(req.params.id));
 
     if (blogIndex === -1) {
         return res.status(404).json({ error: "Blog tidak ditemukan" });
