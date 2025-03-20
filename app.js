@@ -81,7 +81,7 @@ const saveData = async (data) => {
 };
 
 // (async () => {
-//     const name = process.env.NAME
+//     const name = process.env.USER_ADMIN
 //     const pw = process.env.PW
 //     const data = await fetchData();
 //     const users = data.users || [];
