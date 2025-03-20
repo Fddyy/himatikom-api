@@ -166,7 +166,7 @@ app.get("/home/blogs", async (req, res) => {
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .slice(0, 3);
     
-    res.json(sortedBlogs.map(({ id, title, author, created_at, image_url }) => ({ id, title, author, created_at, image_url })));
+    res.json(sortedBlogs.map(({ id, title, slug,author, created_at, image_url }) => ({ id, title, slug,author, created_at, image_url })));
 });
 
 
