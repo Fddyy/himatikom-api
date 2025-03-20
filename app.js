@@ -45,6 +45,14 @@ const JSONBIN_ID = process.env.JSONBIN_ID;
 const MASTER_KEY = process.env.MASTER_KEY;
 const ACCESS_KEY = process.env.ACCESS_KEY;
 
+// SLUG
+const slugify = (title) => {
+    return title
+        .toLowerCase()
+        .replace(/[^a-z0-9\s-]/g, '')  // Hapus karakter selain huruf, angka, spasi dan tanda hubung
+        .replace(/\s+/g, '-')          // Ganti spasi dengan tanda hubung
+        .trim();
+};
 
 // Fungsi membaca data dari JSONBin.io
 const fetchData = async () => {
@@ -162,10 +170,10 @@ app.get("/home/blogs", async (req, res) => {
 });
 
 
-app.get("/blog/:id", async (req, res) => {
+app.get("/blog/:slug", async (req, res) => {
     const data = await fetchData();
     const blogs = data.blogs || [];
-    const blog = blogs.find(b => b.id === parseInt(req.params.id));
+    const blogIndex = blogs.findIndex(b => b.slug === req.params.slug);
     if (!blog) return res.status(404).json({ error: "Blog tidak ditemukan" });
     res.json(blog);
 });
@@ -183,6 +191,7 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
         const newBlog = {
             id: blogs.length > 0 ? Math.max(...blogs.map(b => b.id)) + 1 : 1,
             title,
+            slug: slugify(title),
             content,
             author,
             created_at: new Date().toISOString(),
@@ -202,10 +211,10 @@ app.post("/add/blog", authenticate, upload.single("image"), async (req, res) => 
 });
 
 
-app.delete("/blog/:id", authenticate, async (req, res) => {
+app.delete("/blog/:slug", authenticate, async (req, res) => {
     const data = await fetchData();
     let blogs = data.blogs || [];
-    const blogIndex = blogs.findIndex(b => b.id === parseInt(req.params.id));
+    const blogIndex = blogs.findIndex(b => b.slug === parseInt(req.params.slug));
 
     if (blogIndex === -1) {
         return res.status(404).json({ error: "Blog tidak ditemukan" });
